@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>えいたんごカード</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 15px;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+        h1 {
+            font-size: 22px;
+            color: #2c3e50;
+            margin: 0 0 5px 0;
+            text-align: center;
+        }
+        .progress {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .card-container {
+            width: 100%;
+            max-width: 340px;
+            height: 220px;
+            -webkit-perspective: 1000px;
+            perspective: 1000px;
+            margin-bottom: 25px;
+        }
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            -webkit-transform-style: preserve-3d;
+            transform-style: preserve-3d;
+            -webkit-transition: -webkit-transform 0.4s;
+            transition: transform 0.4s;
+            cursor: pointer;
+        }
+        .card.flipped {
+            -webkit-transform: rotateY(180deg);
+            transform: rotateY(180deg);
+        }
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+            padding: 15px;
+            box-sizing: border-box;
+            background-color: #fff;
+            border: 2px solid #e2e8f0;
+        }
+        .card-front {
+            color: #2b6cb0;
+        }
+        
+        /* 表面の文字エリア（英単語スペルのみ） */
+        .word-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .main-word {
+            font-size: 32px;
+            font-weight: bold;
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        /* 裏面のデザイン */
+        .card-back {
+            background-color: #ebf8ff;
+            -webkit-transform: rotateY(180deg);
+            transform: rotateY(180deg);
+            color: #2d3748;
+        }
+        
+        /* よみがなと確認スペルを表示するエリア */
+        .back-reading-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        
+        /* 解答した後に表示されるカタカナよみがな */
+        .ruby-text-back {
+            font-size: 13px;
+            color: #4a5568;
+            font-weight: normal;
+            display: block;
+            margin-bottom: 2px;
+            letter-spacing: 0.5px;
+            background-color: #cbd5e0;
+            padding: 2px 8px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        /* 裏面の英単語再確認用の文字 */
+        .confirm-word-back {
+            font-size: 18px;
+            color: #718096;
+            font-weight: bold;
+            margin-bottom: 2px;
+            text-align: center;
+        }
+        
+        /* 裏面の仕切り線 */
+        .divider {
+            width: 40px;
+            height: 2px;
+            background-color: #a0aec0;
+            margin: 6px 0 10px 0;
+        }
+        
+        /* 裏面の日本語意味 */
+        .meaning {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            word-break: break-all;
+            color: #1a202c;
+        }
+        
+        .hint {
+            font-size: 11px;
+            color: #a0aec0;
+            margin-top: 15px;
+        }
+        
+        .btn-container {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            max-width: 340px;
+        }
+        button {
+            box-sizing: border-box;
+            flex: 1;
+            padding: 16px 10px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn-show { background-color: #4299e1; color: white; width: 100%; }
+        .btn-yes { background-color: #48bb78; color: white; display: none; }
+        .btn-no { background-color: #f56565; color: white; display: none; }
+        
+        .result-screen {
+            display: none;
+            text-align: center;
+            background: white;
+            padding: 30px 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+            max-width: 340px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .btn-retry { background-color: #ed8936; color: white; margin-top: 20px; width: 100%; flex: none; }
+    </style>
+</head>
+<body>
+
+    <div id="game-screen" style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+        <h1>えいたんごカード</h1>
+        <div class="progress" id="progress">じゅんび中...</div>
+
+        <div class="card-container">
+            <div class="card" id="card" onclick="flipCard();">
+                <!-- 表面：スペルのみを表示（カタカナは絶対に見せない） -->
+                <div class="card-face card-front">
+                    <div class="word-area">
+                        <div id="ruby-area" class="main-word">a</div>
+                    </div>
+                    <div class="hint">タップするか下のボタンで答えをみる</div>
+                </div>
+                <!-- 裏面：よみがな、スペル、意味をまとめて表示 -->
+                <div class="card-face card-back">
+                    <div class="back-reading-area">
+                        <div id="rt-area-back" class="ruby-text-back">ア</div>
+                        <div id="word-confirm-back" class="confirm-word-back">a</div>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="meaning" id="word-back">1つの、ある</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-container">
+            <button class="btn-show" id="btn-show" onclick="flipCard();">こたえをみる</button>
+            <button class="btn-no" id="btn-no" onclick="handleAnswer(false);">まだおぼえてない</button>
+            <button class="btn-yes" id="btn-yes" onclick="handleAnswer(true);">おぼえた！</button>
+        </div>
+    </div>
+
+    <div class="result-screen" id="result-screen">
+        <h2>おつかれさまでした！</h2>
+        <p id="result-text">ぜんぶおぼえたよ！</p>
+        <button class="btn-retry" id="btn-retry" onclick="restartGame();">もういちど</button>
+    </div>
+
+    <script>
+        // 不要な重複や一般普通名詞以外の単語をすべて排除・統合した、洗練された単語リスト
+        var wordList = [
+            { en: "a", rb: "ア", ja: "1つの、ある" },
+            { en: "able", rb: "エイブル", ja: "〜できる" },
+            { en: "about", rb: "アバウト", ja: "〜について、およそ" },
+            { en: "advice", rb: "アドバイス", ja: "アドバイス、助言" },
+            { en: "afraid", rb: "アフレイド", ja: "恐れて、心配して" },
+            { en: "after", rb: "アフター", ja: "〜のあとに" },
+            { en: "afternoon", rb: "アフタヌーン", ja: "午後" },
+            { en: "again", rb: "アゲイン", ja: "もう一度、再び" },
+            { en: "ago", rb: "アゴー", ja: "〜前に" },
+            { en: "ALT", rb: "エーエルティー", ja: "外国語指導助手" },
+            { en: "am", rb: "アム", ja: "〜です、存在する" },
+            { en: "America", rb: "アメリカ", ja: "アメリカ" },
+            { en: "an", rb: "アン", ja: "1つの（母音の前）" },
+            { en: "and", rb: "アンド", ja: "〜と、そして" },
+            { en: "answered", rb: "アンサード", ja: "答えた（answerの過去形）" },
+            { en: "any", rb: "エニィ", ja: "いくつかの、どれでも" },
+            { en: "apple", rb: "アップル", ja: "りんご" },
+            { en: "are", rb: "アー", ja: "〜です、存在する" },
+            { en: "ask", rb: "アスク", ja: "たずねる、頼む" },
+            { en: "at", rb: "アット", ja: "〜で、〜に" },
+            { en: "baseball", rb: "ベースボール", ja: "野球" },
+            { en: "basketball", rb: "バスケットボール", ja: "バスケットボール" },
+            { en: "be", rb: "ビー", ja: "〜になる、〜である" },
+            { en: "beautiful", rb: "ビューティフル", ja: "美しい、きれいな" },
+            { en: "bed", rb: "ベッド", ja: "ベッド" },
+            { en: "begin", rb: "ビギン", ja: "始まる、始める" },
+            { en: "book", rb: "ブック", ja: "本" },
+            { en: "box", rb: "ボックス", ja: "箱" },
+            { en: "boy", rb: "ボーイ", ja: "少年、男の子" },
+            { en: "breakfast", rb: "ブレックファスト", ja: "朝食" },
+            { en: "brother", rb: "ブラザー", ja: "兄、弟" },
+            { en: "buy", rb: "バイ", ja: "買う" },
+            { en: "cake", rb: "ケーキ", ja: "ケーキ" },
+            { en: "called", rb: "コールド", ja: "電話した、呼んだ（callの過去形）" },
+            { en: "came", rb: "ケイム", ja: "来た（comeの過去形）" },
+            { en: "car", rb: "カー", ja: "車" },
+            { en: "chance", rb: "チャンス", ja: "機会、チャンス" },
+            { en: "city", rb: "シティ", ja: "都市、市" },
+            { en: "clean", rb: "クリーン", ja: "きれいにする、掃除する" },
+            { en: "cold", rb: "コールド", ja: "冷たい、寒い" },
+            { en: "college", rb: "カレッジ", ja: "大学" },
+            { en: "comic", rb: "コミック", ja: "マンガの" },
+            { en: "computer", rb: "コンピューター", ja: "コンピュータ" },
+            { en: "cook", rb: "クック", ja: "料理人、料理する" },
+            { en: "decide", rb: "ディサイド", ja: "決める、決心する" },
+            { en: "decided", rb: "ディサイディッド", ja: "決めた（decideの過去形）" },
+            { en: "did", rb: "ディド", ja: "した（doの過去形）" },
+            { en: "didn't", rb: "ディドゥント", ja: "しなかった（did notの短縮形）" },
+            { en: "dinner", rb: "ディナー", ja: "夕食" },
+            { en: "dish", rb: "ディッシュ", ja: "皿" },
+            { en: "do", rb: "ドゥー", ja: "する、行う" },
+            { en: "doctor", rb: "ドクター", ja: "医者" },
+            { en: "don't", rb: "ドーント", ja: "〜しない（do notの短縮形）" },
+            { en: "dream", rb: "ドリーム", ja: "夢" },
+            { en: "drink", rb: "ドリンク", ja: "飲む" },
+            { en: "drive", rb: "ドライブ", ja: "運転する" },
+            { en: "e-mail", rb: "イーメール", ja: "電子メール" },
+            { en: "early", rb: "アーリー", ja: "早く、早い" },
+            { en: "easy", rb: "イージー", ja: "簡単な、やさしい" },
+            { en: "eat", rb: "イート", ja: "食べる" },
+            { en: "egg", rb: "エッグ", ja: "卵" },
+            { en: "English", rb: "イングリッシュ", ja: "英語" },
+            { en: "everyone", rb: "エヴリワン", ja: "みんな、みなさん" },
+            { en: "father", rb: "ファザー", ja: "お父さん" },
+            { en: "finish", rb: "フィニッシュ", ja: "終える" },
+            { en: "first", rb: "ファースト", ja: "最初の、初めての" },
+            { en: "flower", rb: "フラワー", ja: "花" },
+            { en: "for", rb: "フォー", ja: "〜のために、〜の間" },
+            { en: "friend", rb: "フレンド", ja: "友達" },
+            { en: "from", rb: "フロム", ja: "〜から、〜出身で" },
+            { en: "fun", rb: "ファン", ja: "楽しいこと" },
+            { en: "future", rb: "フューチャー", ja: "未来、将来" },
+            { en: "game", rb: "ゲーム", ja: "試合、ゲーム" },
+            { en: "garden", rb: "ガーデン", ja: "庭" },
+            { en: "get", rb: "ゲット", ja: "得る、起きる(get up)" },
+            { en: "glad", rb: "グラッド", ja: "うれしい" },
+            { en: "go", rb: "ゴー", ja: "行く" },
+            { en: "good", rb: "グッド", ja: "良い、上手な" },
+            { en: "grandfather", rb: "グランドファザー", ja: "おじいさん、祖父" },
+            { en: "had", rb: "ハド", ja: "持っていた（haveの過去形）" },
+            { en: "happy", rb: "ハッピー", ja: "幸せな、うれしい" },
+            { en: "hard", rb: "ハード", ja: "一生懸命に、難しい" },
+            { en: "have", rb: "ハヴ", ja: "持っている、食べる" },
+            { en: "he", rb: "ヒー", ja: "彼は" },
+            { en: "health", rb: "ヘルス", ja: "健康" },
+            { en: "help", rb: "ヘルプ", ja: "手伝う、助ける" },
+            { en: "her", rb: "ハー", ja: "彼女の、彼女を" },
+            { en: "here", rb: "ヒア", ja: "ここに、ここで" },
+            { en: "him", rb: "ヒム", ja: "彼を、彼に" },
+            { en: "his", rb: "ヒズ", ja: "彼の" },
+            { en: "home", rb: "ホーム", ja: "家、家に" },
+            { en: "homework", rb: "ホームワーク", ja: "宿題" },
+            { en: "hoped", rb: "ホープト", ja: "望んだ（hopeの過去形）" },
+            { en: "hot", rb: "ホット", ja: "暑い、熱い" },
+            { en: "house", rb: "ハウス", ja: "家" },
+            { en: "How", rb: "ハウ", ja: "どのように、どれほど" },
+            { en: "I", rb: "アイ", ja: "私は" },
+            { en: "I'm", rb: "アイム", ja: "私は〜です（I amの短縮形）" },
+            { en: "I'll", rb: "アイル", ja: "私は〜するつもりだ（I willの短縮形）" },
+            { en: "if", rb: "イフ", ja: "もし〜ならば" },
+            { en: "important", rb: "インポータント", ja: "大切な、重要な" },
+            { en: "in", rb: "イン", ja: "〜の中に、〜で" },
+            { en: "is", rb: "イズ", ja: "〜です、存在する" },
+            { en: "it", rb: "イット", ja: "それ、それは" },
+            { en: "It's", rb: "イッツ", ja: "それは〜です（It isの短縮形）" },
+            { en: "Japan", rb: "ジャパン", ja: "日本" },
+            { en: "Japanese", rb: "ジャパニーズ", ja: "日本語、日本人" },
+            { en: "job", rb: "ジョブ", ja: "仕事" },
+            { en: "know", rb: "ノウ", ja: "知っている、分かる" },
+            { en: "learn", rb: "ラーン", ja: "学ぶ、習う" },
+            { en: "letter", rb: "レター", ja: "手紙、文字" },
+            { en: "library", rb: "ライブラリ", ja: "図書館" },
+            { en: "little", rb: "リトル", ja: "少しの、小さい" },
+            { en: "live", rb: "リヴ", ja: "住む、生きる" },
+            { en: "lot", rb: "ロット", ja: "たくさんのこと(a lot of)" },
+            { en: "lunch", rb: "ランチ", ja: "昼食、お弁当" },
+            { en: "make", rb: "メイク", ja: "作る" },
+            { en: "man", rb: "マン", ja: "男の人、男性" },
+            { en: "many", rb: "メニィ", ja: "たくさんの" },
+            { en: "me", rb: "ミー", ja: "私を、私に" },
+            { en: "milk", rb: "ミルク", ja: "牛乳、ミルク" },
+            { en: "mistake", rb: "ミステイク", ja: "間違い" },
+            { en: "moon", rb: "ムーン", ja: "月" },
+            { en: "more", rb: "モア", ja: "もっと、より多くの" },
+            { en: "mother", rb: "マザー", ja: "お母さん" },
+            { en: "movie", rb: "ムービー", ja: "映画" },
+            { en: "my", rb: "マイ", ja: "私の" },
+            { en: "name", rb: "ネイム", ja: "名前" },
+            { en: "near", rb: "ニア", ja: "〜の近くに" },
+            { en: "new", rb: "ニュー", ja: "新しい" },
+            { en: "news", rb: "ニュース", ja: "ニュース" },
+            { en: "no", rb: "ノウ", ja: "1つもない、いいえ" },
+            { en: "not", rb: "ノット", ja: "〜でない" },
+            { en: "now", rb: "ナウ", ja: "今、現在は" },
+            { en: "of", rb: "オヴ", ja: "〜の" },
+            { en: "office", rb: "オフィス", ja: "事務所、会社" },
+            { en: "often", rb: "オッフン", ja: "よく、しばしば" },
+            { en: "old", rb: "オールド", ja: "古い、〜歳" },
+            { en: "one", rb: "ワン", ja: "1つ、1人" },
+            { en: "open", rb: "オープン", ja: "開ける、開く" },
+            { en: "our", rb: "アウア", ja: "私たちの" },
+            { en: "parents", rb: "ペアレンツ", ja: "両親" },
+            { en: "park", rb: "パーク", ja: "公園" },
+            { en: "party", rb: "パーティー", ja: "パーティー" },
+            { en: "people", rb: "ピープル", ja: "人々" },
+            { en: "piano", rb: "ピアノ", ja: "ピアノ" },
+            { en: "picture", rb: "ピクチャー", ja: "写真、絵" },
+            { en: "piece", rb: "ピース", ja: "1つの〜(a piece of)" },
+            { en: "play", rb: "プレイ", ja: "する、遊ぶ、弾く" },
+            { en: "played", rb: "プレイド", ja: "した、遊んだ（playの過去形）" },
+            { en: "player", rb: "プレイヤー", ja: "選手、演奏者" },
+            { en: "please", rb: "プリーズ", ja: "どうぞ、〜してください" },
+            { en: "police officer", rb: "ポリース オフィス", ja: "警察官" },
+            { en: "practice", rb: "プラクティス", ja: "練習する" },
+            { en: "problem", rb: "プロブレム", ja: "問題、困ったこと" },
+            { en: "question", rb: "クエスチョン", ja: "質問、問題" },
+            { en: "rain", rb: "レイン", ja: "雨、雨が降る" },
+            { en: "ran", rb: "ラン", ja: "走った（runの過去形）" },
+            { en: "read", rb: "リード", ja: "読む" },
+            { en: "real", rb: "リアル", ja: "本当の、本物の" },
+            { en: "river", rb: "リヴァー", ja: "川" },
+            { en: "room", rb: "ルーム", ja: "部屋" },
+            { en: "sad", rb: "サッド", ja: "悲しい" },
+            { en: "school", rb: "スクール", ja: "学校" },
+            { en: "science", rb: "サイエンス", ja: "理科、科学" },
+            { en: "see", rb: "シー", ja: "会う、見る" },
+            { en: "shopping", rb: "ショッピング", ja: "買い物" },
+            { en: "should", rb: "シュッド", ja: "〜すべきだ" },
+            { en: "sick", rb: "シック", ja: "病気の" },
+            { en: "sing", rb: "シング", ja: "歌う" },
+            { en: "sister", rb: "シスター", ja: "姉、妹" },
+            { en: "six", rb: "シックス", ja: "6、6つの" },
+            { en: "snow", rb: "スノウ", ja: "雪、雪が降る" },
+            { en: "so", rb: "ソウ", ja: "だから、とても" },
+            { en: "soccer", rb: "サッカー", ja: "サッカー" },
+            { en: "some", rb: "サム", ja: "いくつかの、何人か" },
+            { en: "someone", rb: "サムワン", ja: "だれか" },
+            { en: "something", rb: "サムシング", ja: "何か、あるもの" },
+            { en: "song", rb: "ソング", ja: "歌" },
+            { en: "sorry", rb: "ソリィ", ja: "気の毒で、残念で" },
+            { en: "speak", rb: "スピーク", ja: "話す" },
+            { en: "start", rb: "スタート", ja: "始まる、出発する" },
+            { en: "started", rb: "スターティッド", ja: "始めた（startの過去形）" },
+            { en: "station", rb: "ステイション", ja: "駅" },
+            { en: "stay", rb: "ステイ", ja: "滞在する、家にいる" },
+            { en: "store", rb: "ストア", ja: "店" },
+            { en: "study", rb: "スタディ", ja: "勉強する" },
+            { en: "surprised", rb: "サプライズド", ja: "驚いた" },
+            { en: "take", rb: "テイク", ja: "撮る、取る" },
+            { en: "talk", rb: "トーク", ja: "話す、しゃべる" },
+            { en: "teach", rb: "ティーチ", ja: "教える" },
+            { en: "ten", rb: "テン", ja: "10" },
+            { en: "tennis", rb: "テニス", ja: "テニス" },
+            { en: "thank", rb: "サンク", ja: "感謝する" },
+            { en: "that", rb: "ザット", ja: "そのこと、あれ" },
+            { en: "the", rb: "ザ", ja: "その" },
+            { en: "then", rb: "ゼン", ja: "そのとき、それから" },
+            { en: "there", rb: "ゼア", ja: "そこに、そこへ" },
+            { en: "they", rb: "ゼイ", ja: "彼らは、それらは" },
+            { en: "thing", rb: "シング", ja: "こと、もの" },
+            { en: "thirteen", rb: "サーティーン", ja: "13" },
+            { en: "this", rb: "ディス", ja: "これ、この" },
+            { en: "three", rb: "スリー", ja: "3" },
+            { en: "time", rb: "タイム", ja: "時間、時刻" },
+            { en: "to", rb: "トゥー", ja: "〜へ、〜すること" },
+            { en: "today", rb: "トゥデイ", ja: "今日、今日の" },
+            { en: "town", rb: "タウン", ja: "町" },
+            { en: "train", rb: "トレイン", ja: "電車" },
+            { en: "tried", rb: "トライド", ja: "〜しようとした（tryの過去形）" },
+            { en: "try", rb: "トライ", ja: "やってみる" },
+            { en: "TV", rb: "ティーヴィー", ja: "テレビ" },
+            { en: "up", rb: "アップ", ja: "上に" },
+            { en: "us", rb: "アス", ja: "私たちを、私たちに" },
+            { en: "very", rb: "ヴェリィ", ja: "とても" },
+            { en: "visit", rb: "ヴィジット", ja: "訪れる" },
+            { en: "visited", rb: "ヴィジティッド", ja: "訪れた（visitの過去形）" },
+            { en: "walk", rb: "ウォーク", ja: "歩く、散歩する" },
+            { en: "want", rb: "ウォント", ja: "欲しい、〜したい" },
+            { en: "wanted", rb: "ウォンティッド", ja: "〜したかった（wantの過去形）" },
+            { en: "was", rb: "ワズ", ja: "〜だった（am, isの過去形）" },
+            { en: "wash", rb: "ウォッシュ", ja: "洗う" },
+            { en: "watch", rb: "ウォッチ", ja: "見る" },
+            { en: "water", rb: "ウォーター", ja: "水" },
+            { en: "way", rb: "ウェイ", ja: "方法、道" },
+            { en: "we", rb: "ウィー", ja: "私たちは" },
+            { en: "wear", rb: "ウェア", ja: "着る、身につける" },
+            { en: "well", rb: "ウェル", ja: "上手に、よく" },
+            { en: "went", rb: "ウェント", ja: "行った（goの過去形）" },
+            { en: "were", rb: "ウェア", ja: "〜だった（areの過去形）" },
+            { en: "what", rb: "ワット", ja: "何、何が" },
+            { en: "when", rb: "ウェン", ja: "〜のとき、いつ" },
+            { en: "why", rb: "ワイ", ja: "なぜ、どうして" },
+            { en: "will", rb: "ウィル", ja: "〜だろう、〜するつもりだ" },
+            { en: "win", rb: "ウィン", ja: "勝つ" },
+            { en: "with", rb: "ウィズ", ja: "〜と一緒に、〜を使って" },
+            { en: "word", rb: "ワード", ja: "言葉、単語" },
+            { en: "work", rb: "ワーク", ja: "仕事、働く" },
+            { en: "would", rb: "ウッド", ja: "〜したいと思う(would like)" },
+            { en: "wrestler", rb: "レスラー", ja: "レスラー、力士" },
+            { en: "write", rb: "ライト", ja: "書く" },
+            { en: "year", rb: "イヤー", ja: "年、1年" },
+            { en: "you", rb: "ユー", ja: "あなた、あなたたち" },
+            { en: "you'll", rb: "ユール", ja: "あなたは〜するだろう（you willの短縮形）" },
+            { en: "your", rb: "ユア", ja: "あなたの" }
+        ];
+
+        var currentWords = [];
+        var wrongWords = [];
+        var currentIndex = 0;
+        var isFlipped = false;
+        var isTransitioning = false; // 連打バグ防止用のフラグ
+
+        function initGame(wordsToUse) {
+            currentWords = shuffle([].concat(wordsToUse));
+            wrongWords = [];
+            currentIndex = 0;
+            isFlipped = false;
+            isTransitioning = false;
+            
+            document.getElementById("game-screen").style.display = "flex";
+            document.getElementById("result-screen").style.display = "none";
+            showWord();
+        }
+
+        function shuffle(array) {
+            for (var i = array.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = array[i];
+                array[i] = array[j];
+                array[j] = temp;
+            }
+            return array;
+        }
+
+        function showWord() {
+            if (currentIndex >= currentWords.length) {
+                showResult();
+                isTransitioning = false;
+                return;
+            }
+            isFlipped = false;
+            document.getElementById("card").className = "card";
+            
+            document.getElementById("progress").innerText = "のこり: " + (currentWords.length - currentIndex) + "問 / ぜんぶで: " + currentWords.length + "問";
+            
+            var frontWord = currentWords[currentIndex].en;
+            var backRuby = currentWords[currentIndex].rb;
+            var backMeaning = currentWords[currentIndex].ja;
+            
+            var wordElement = document.getElementById("ruby-area");
+            
+            // はみ出しを防止するためのフォントサイズ制御
+            if (frontWord.length > 12) {
+                wordElement.style.fontSize = "16px";
+            } else if (frontWord.length > 8) {
+                wordElement.style.fontSize = "22px";
+            } else {
+                wordElement.style.fontSize = "32px";
+            }
+            
+            // 表面は英単語のみ表示
+            wordElement.innerText = frontWord;
+            
+            // 裏面にあらかじめ現在の正しいデータをセットしておく
+            document.getElementById("rt-area-back").innerText = backRuby;
+            document.getElementById("word-confirm-back").innerText = frontWord;
+            document.getElementById("word-back").innerText = backMeaning;
+            
+            document.getElementById("btn-show").style.display = "block";
+            document.getElementById("btn-yes").style.display = "none"; 
+            document.getElementById("btn-no").style.display = "none";
+        }
+
+        function flipCard() {
+            if (isFlipped || isTransitioning) return; 
+            isFlipped = true;
+            
+            document.getElementById("card").className = "card flipped";
+            
+            document.getElementById("btn-show").style.display = "none";
+            document.getElementById("btn-yes").style.display = "block"; 
+            document.getElementById("btn-no").style.display = "block";
+        }
+
+        function handleAnswer(isCorrect) {
+            if (isTransitioning) return;
+            isTransitioning = true; // 連打防止ロック
+
+            if (!isCorrect) {
+                wrongWords.push(currentWords[currentIndex]);
+            }
+            currentIndex++; 
+            
+            setTimeout(function() {
+                showWord();
+                isTransitioning = false; // ロック解除
+            }, 200);
+        }
+
+        function showResult() {
+            document.getElementById("game-screen").style.display = "none";
+            document.getElementById("result-screen").style.display = "block";
+            
+            var resultText = document.getElementById("result-text");
+            var retryBtn = document.getElementById("btn-retry");
+            
+            if (wrongWords.length === 0) {
+                resultText.innerHTML = '<span style="color:#48bb78; font-size:24px; font-weight:bold;">すごーい！ぜんぶ合格！</span>';
+                retryBtn.innerText = "もういちど はじめから遊ぶ";
+            } else {
+                resultText.innerHTML = "まちがえた単語が <span style='color:#f56565; font-size:20px; font-weight:bold;'>" + wrongWords.length + "問</span> あるよ。<br>もう一回やってみよう！";
+                retryBtn.innerText = "まちがえた単語をふくしゅうする";
+            }
+        }
+
+        function restartGame() {
+            if (wrongWords.length === 0) {
+                initGame(wordList);
+            } else {
+                initGame(wrongWords);
+            }
+        }
+
+        document.getElementById("card").onclick = function() {
+            flipCard();
+        };
+        document.getElementById("btn-show").onclick = function() {
+            flipCard();
+        };
+        document.getElementById("btn-yes").onclick = function() {
+            handleAnswer(true);
+        };
+        document.getElementById("btn-no").onclick = function() {
+            handleAnswer(false);
+        };
+        document.getElementById("btn-retry").onclick = function() {
+            restartGame();
+        };
+
+        initGame(wordList);
+    </script>
+</body>
+</html>
+    
